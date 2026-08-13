@@ -1,9 +1,12 @@
 # Memory Bank Commands
 
-This directory contains Cursor 2.0 commands and Claude Code skills that implement the Memory Bank v1.0 pipeline. The system supports two interfaces:
+This directory contains Cursor 2.0 commands and Claude Code skills that implement the Memory Bank pipeline. The system supports these interfaces:
 
-- **Cursor IDE** — 11 individual `/commands` you run stage by stage
+- **Cursor IDE (manual)** — 11 individual `/commands` you run stage by stage
+- **Cursor IDE (automated)** — a `/orchestrate` command, or a standalone Python/Bash/Rust harness in [`orchestrator/`](orchestrator/README.md), each running stages on their own pinned model
 - **Claude Code** — a single `/orchestrate` skill that runs the full pipeline automatically
+
+> **SCAN and PENTEST are optional and off by default** — opt in with `--security` / `--scan` / `--pentest` (harness) or by asking for security in the task text (`/orchestrate`).
 
 ## Available Commands (Cursor IDE)
 
@@ -131,30 +134,45 @@ This directory contains Cursor 2.0 commands and Claude Code skills that implemen
 **Next steps:**
 - After archiving complete → `/van` (for next task)
 
-## Claude Code: `/orchestrate`
+## Automated orchestration (`/orchestrate` & harness)
 
-Claude Code uses a single command that runs the entire pipeline automatically:
+You can run the entire pipeline automatically — no individual commands needed — three ways, all reading the same `.cursor/agents/mb-*.md` stage files and routing on the same verdicts:
 
+- **Claude Code** — `/orchestrate Add user authentication with OAuth2 support`. See `.claude/skills/orchestrate/SKILL.md`.
+- **Cursor `/orchestrate` command** — same in Cursor chat; drives the `mb-*` subagents, each on its own pinned model. See `.cursor/commands/orchestrate.md`.
+- **Terminal / CI harness** — Python, Bash, or Rust:
+
+```bash
+python3 orchestrator/pipeline.py --task "..."      # or --task-file spec.md, or < spec.md
+orchestrator/orchestrate.sh --task "..."
+cd orchestrator/rust && cargo run -- --task "..." --repo ../..
 ```
-/orchestrate Add user authentication with OAuth2 support
-```
 
-The orchestrator spawns each stage as a subagent, parses verdicts, and routes failures automatically. No individual commands needed. See `.claude/skills/orchestrate/SKILL.md` for details.
+All harnesses accept the task via `--task`, `--task-file`, or stdin. See [`orchestrator/README.md`](orchestrator/README.md).
 
 ## Command Workflows by Complexity
+
+Default routes (**security stages off**):
 
 ```
 Level 1 (Bug Fix):
   /van → /build → /reflect
 
 Level 2 (Enhancement):
-  /van → /plan → /build → /scan → /judge → /reflect
+  /van → /plan → /build → /judge → /reflect
 
 Level 3 (Feature):
-  /van → /plan → /creative → /build → /scan → /judge → /integrate → /validate → /pentest → /reflect
+  /van → /plan → /creative → /build → /judge → /integrate → /validate → /reflect
 
 Level 4 (System):
-  /van → /plan → /creative → /build → /scan → /judge → /integrate → /validate → /pentest → /reflect → /archive
+  /van → /plan → /creative → /build → /judge → /integrate → /validate → /reflect → /archive
+```
+
+With security enabled (`--security`), SCAN is injected before JUDGE and PENTEST after VALIDATE:
+
+```
+Level 3 (Feature, +security):
+  /van → /plan → /creative → /build → /scan → /judge → /integrate → /validate → /pentest → /reflect
 ```
 
 ## Progressive Rule Loading
@@ -199,4 +217,4 @@ These commands replace the previous custom modes:
 - **REFLECT Mode** → `/reflect` command
 - **ARCHIVE Mode** → `/archive` command
 
-The functionality remains the same, but now uses Cursor 2.0's commands feature instead of custom modes. Claude Code users should use `/orchestrate` instead of individual commands.
+The functionality remains the same, but now uses Cursor 2.0's commands feature instead of custom modes. For automated runs, use `/orchestrate` (Cursor or Claude Code) or the [`orchestrator/`](orchestrator/README.md) harness instead of individual commands.
