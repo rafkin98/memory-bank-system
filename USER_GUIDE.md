@@ -1,6 +1,6 @@
 # Cursor Memory Bank: User Guide
 
-A practical guide to using the Memory Bank system for feature development. This guide covers both **Cursor IDE** (individual stage commands) and **Claude Code** (automated orchestrator), walking through the complete workflow from creating a feature branch to archiving a completed task.
+A practical guide to using the Memory Bank system for feature development. This guide covers **Cursor IDE** (individual stage commands, an automated `/orchestrate` command, or a Python/Bash/Rust harness) and **Claude Code** (automated orchestrator), walking through the complete workflow from creating a feature branch to archiving a completed task.
 
 ---
 
@@ -48,8 +48,10 @@ Both approaches produce the same outputs in `memory-bank/`. The rest of this gui
 
 The Memory Bank system is a structured development pipeline that breaks feature development into discrete stages, each with a specific purpose, agent role, and set of outputs. It supports two interfaces:
 
-- **Cursor IDE**: 11 individual `/commands` — you run each stage manually and control the pace
+- **Cursor IDE**: 11 individual `/commands` (run each stage manually), **or** a single `/orchestrate` command that automates the whole pipeline via subagents, **or** a standalone Python/Bash/Rust harness in [`orchestrator/`](orchestrator/README.md)
 - **Claude Code**: Single `/orchestrate` command — the pipeline runs automatically as multi-agent orchestration
+
+> **SCAN and PENTEST are optional and off by default.** Enable them per run with `--security` / `--scan` / `--pentest` (harness) or by asking for security in the task text (`/orchestrate`).
 
 ### The Pipeline
 
@@ -882,9 +884,9 @@ All documentation consolidated. `tasks.md` cleared for next feature. Archive pre
 
 ---
 
-## Using Claude Code (Orchestrator)
+## Using the Orchestrator (Claude Code or Cursor)
 
-While the stage-by-stage walkthrough above describes the Cursor IDE experience, Claude Code runs the same pipeline through a single automated command.
+While the stage-by-stage walkthrough above describes the manual Cursor IDE experience, the pipeline can also run fully automatically — in **Claude Code** via the `/orchestrate` skill, and in **Cursor** via either the `/orchestrate` command or the standalone harness. All read the same `.cursor/agents/mb-*.md` stage files and route on the same verdicts; the description below applies to all of them.
 
 ### How It Works
 
@@ -918,7 +920,7 @@ graph TD
 The orchestrator will:
 1. **Spawn a VAN subagent** to assess complexity and initialize Memory Bank
 2. **Read the complexity level** from `memory-bank/projectbrief.md`
-3. **Route the pipeline** based on level (L1: 3 stages, L2: 6, L3: 10, L4: 11)
+3. **Route the pipeline** based on level (defaults, security off — L1: 3 stages, L2: 5, L3: 8, L4: 9; adding `--security` injects SCAN + PENTEST)
 4. **Spawn each stage as a subagent** sequentially
 5. **Parse verdicts** from SCAN, JUDGE, INTEGRATE, VALIDATE, and PENTEST
 6. **Route failures** automatically (e.g., SCAN FAIL → re-run BUILD with findings)
@@ -956,11 +958,12 @@ After 3 failed loops on any stage, the orchestrator stops and asks for your guid
 
 | Use Case | Recommended |
 |----------|-------------|
-| You want to review each stage's output before proceeding | **Cursor IDE** |
-| You want hands-off automated pipeline execution | **Claude Code** |
-| You want to skip or repeat specific stages | **Cursor IDE** |
-| You want consistent end-to-end runs | **Claude Code** |
-| You're learning the pipeline stages | **Cursor IDE** |
+| You want to review each stage's output before proceeding | **Cursor IDE** (manual commands) |
+| You want hands-off automated pipeline execution | **Claude Code**, or Cursor `/orchestrate` / harness |
+| You want to skip or repeat specific stages | **Cursor IDE** (manual commands) |
+| You want consistent end-to-end runs | **Claude Code**, or the Cursor harness |
+| You want guaranteed per-stage models or CI runs | **Cursor harness** (`orchestrator/`) |
+| You're learning the pipeline stages | **Cursor IDE** (manual commands) |
 | You're running production-grade tasks | **Either** |
 
 ### Setup for Cursor IDE
@@ -1005,6 +1008,23 @@ Alternatively, set things up manually:
 2. Ensure `.claude/memory-bank-template/` exists (with `security/` subdirectory)
 
 Once set up, run `/orchestrate <task description>` — that's it. No individual stage commands are needed. The orchestrator skill contains all stage agent prompts internally.
+
+### Running the pipeline from the terminal (Cursor harness)
+
+For CI or scripted runs, the [`orchestrator/`](orchestrator/README.md) harness runs the whole pipeline from your shell in Python, Bash, or Rust — each stage on its own pinned model from `.cursor/agents/mb-*.md`:
+
+```bash
+# Python (Cursor SDK) — needs: pip install -r orchestrator/requirements.txt, CURSOR_API_KEY
+python3 orchestrator/pipeline.py --task "Add rate limiting to the public API"
+
+# Bash (needs the cursor-agent CLI + jq)
+orchestrator/orchestrate.sh --task "..."
+
+# Rust (needs cargo + the cursor-agent CLI)
+cd orchestrator/rust && cargo run -- --task "..." --repo ../..
+```
+
+All three accept the task **three ways** — `--task "..."`, `--task-file spec.md` (e.g. a Markdown brief), or piped/typed via **stdin** (`... < spec.md`, or run bare and type it, then Ctrl-D). Useful flags: `--security` / `--scan` / `--pentest` (opt into the optional security stages), `--print-config` (show the stage→model plan), `--dry-run` (preview the route without spending tokens), `--max-loops N` (remediation cap). See [`orchestrator/README.md`](orchestrator/README.md) for per-stage model defaults, token/cost reporting, and exit codes.
 
 ---
 

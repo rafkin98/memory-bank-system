@@ -2,6 +2,48 @@
 
 > **Personal Note**: Memory Bank is my personal hobby project that I develop for my own use in coding projects. As this is a personal project, I don't maintain an issues tracker or actively collect feedback. However, if you're using these rules and encounter issues, one of the great advantages is that you can ask the Cursor AI directly to modify or update the rules to better suit your specific workflow. The system is designed to be adaptable by the AI, allowing you to customize it for your own needs without requiring external support.
 
+## Version 1.1 - Cursor Orchestration, Multi-Language Harness & Optional Security
+
+> Building on v1.0, this release brings **automated orchestration to Cursor** (not just Claude Code), adds a standalone **Python / Bash / Rust** harness for terminal & CI runs, makes the **security stages opt-in**, and raises the engineering bar of the agents.
+
+### 🌟 Major Features
+
+#### Cursor orchestration with per-stage models
+- **`/orchestrate` command** for Cursor (`.cursor/commands/orchestrate.md`) drives the full pipeline via subagents.
+- **11 stage subagents** (`.cursor/agents/mb-*.md`) — each pins its **own model** in YAML frontmatter (`model:`), so review stages run on a different model family than BUILD to reduce correlated blind spots.
+
+#### Standalone orchestrator harness (`orchestrator/`)
+- Three interchangeable implementations of the same verdict-routed state machine, all reading the same `mb-*.md` stage files:
+  - **Python** (`pipeline.py`) — Cursor Python SDK
+  - **Bash** (`orchestrate.sh`) — `cursor-agent` CLI + `jq`
+  - **Rust** (`rust/`) — `cursor-agent` CLI wrapper (only `serde_json` dep)
+- **Task input three ways:** `--task "..."`, `--task-file spec.md` (e.g. a Markdown brief), or piped/typed via **stdin**.
+- Per-stage + summary **token reporting** with a local (editable) **cost estimate**; `--print-config`, `--dry-run`, and `--max-loops` controls.
+
+#### Security stages are now optional (off by default)
+- SCAN and PENTEST no longer run automatically. Opt in with `--security` / `--scan` / `--pentest` (harness) or by asking for security in the task text (`/orchestrate`).
+- **New default routes (security off):** L1 = 3, L2 = 5, L3 = 8, L4 = 9 stages. Enabling security injects SCAN before JUDGE and PENTEST after VALIDATE.
+
+#### Raised engineering bar (agent standards)
+- **BUILD** now runs as a **Principal Engineer** — simplest clean solution, no bloat, a self-review loop, and a hard verification gate (tests/lint/types) before "done".
+- **JUDGE** as **Principal Engineer / Code Reviewer**, **VALIDATE** as **Principal QA Engineer**, **REFLECT** as **Senior Analyst** — each probing until genuinely satisfied.
+- **VAN** complexity assessment aligned to the full `complexity-decision-tree.mdc` criteria.
+
+### 📚 Files Added
+- `.cursor/commands/orchestrate.md` and `.cursor/agents/mb-*.md` (11 stage subagents)
+- `orchestrator/` — `pipeline.py`, `orchestrate.sh`, `rust/` (`Cargo.toml`, `src/main.rs`), `requirements.txt`, `README.md`
+
+### 📝 Files Updated
+- `.claude/skills/orchestrate/SKILL.md` and `.claude/CLAUDE.md` — optional security + principal-level agent standards
+- `README.md` and `USER_GUIDE.md` — Cursor orchestration, the harness, task input modes, optional-security routing
+
+### 🔧 Requirements
+- **Python harness:** `pip install -r orchestrator/requirements.txt` (`cursor-sdk`) + `CURSOR_API_KEY`
+- **Bash harness:** `cursor-agent` CLI (logged in) + `jq`
+- **Rust harness:** `cargo` + `cursor-agent` CLI
+
+---
+
 ## Version 1.0 - Security Pipeline & Claude Code Orchestrator
 
 > Building upon Memory Bank v0.8, this release adds dedicated security stages (SCAN and PENTEST) to the pipeline, expands from 9 to 11 stages, and introduces Claude Code support via the `/orchestrate` skill.
