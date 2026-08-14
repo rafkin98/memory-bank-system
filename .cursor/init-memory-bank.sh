@@ -51,6 +51,19 @@ else
     echo "  Skipped: .cursor/commands/ (source not found)"
 fi
 
+# Copy agents (mb-* subagents used by the /orchestrate command)
+if [ -d "$SCRIPT_DIR/agents" ]; then
+    if [ "$FORCE" = true ] || [ ! -d "$TARGET/.cursor/agents" ]; then
+        rm -rf "$TARGET/.cursor/agents"
+        cp -r "$SCRIPT_DIR/agents" "$TARGET/.cursor/agents"
+        echo "  Created: .cursor/agents/ (mb-* stage subagents for /orchestrate)"
+    else
+        echo "  Skipped: .cursor/agents/ (already exists)"
+    fi
+else
+    echo "  Skipped: .cursor/agents/ (source not found)"
+fi
+
 # Copy rules
 if [ -d "$SCRIPT_DIR/rules" ]; then
     if [ "$FORCE" = true ] || [ ! -d "$TARGET/.cursor/rules" ]; then
@@ -79,8 +92,10 @@ fi
 echo ""
 echo "Memory Bank (Cursor IDE) initialized."
 echo ""
-echo "Usage: Open your project in Cursor IDE and use the commands:"
+echo "Usage: Open your project in Cursor IDE. Either run stages manually:"
 echo "  /van → /plan → /creative → /build → /reflect → /archive"
+echo "...or run the whole pipeline automatically (per-stage models via .cursor/agents/):"
+echo "  /orchestrate <task description>"
 echo ""
 echo "The system routes complexity automatically:"
 echo "  Level 1 (bug fix):     VAN → BUILD → REFLECT"
